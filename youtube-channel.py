@@ -2,16 +2,23 @@ from tkinter import *
 from tkinter.font import *
 from PIL import ImageTk, Image
 from io import BytesIO
+import urllib.parse  # 用於處理中文編碼
 import urllib.request as request
 import json
 import webbrowser
 
 # API 金鑰
-API_KEY = "AIzaSyBAYG7ThWLOc9tvNZUEVuiDe5-GEAUnE08"  # 請替換成你的 YouTube Data API 金鑰
+API_KEY = "AIzaSyBAYG7ThWLOc9tvNZUEVuiDe5-GEAUnE08"  # 請替換成有效的 API 金鑰
 
 def fetch_channel_info():
     name = Channel.get().strip()  # 取得使用者輸入並去除多餘空格
-    search_url = f'https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=channel&q={name}&key={API_KEY}'
+    if not name:
+        error_label.config(text="請輸入頻道名稱！", fg="red")
+        return
+
+    # 中文名稱進行 URL 編碼
+    encoded_name = urllib.parse.quote(name)
+    search_url = f'https://youtube.googleapis.com/youtube/v3/search?part=snippet&type=channel&q={encoded_name}&key={API_KEY}'
     
     try:
         # 搜索頻道
@@ -40,9 +47,9 @@ def fetch_detailed_info(channel_id):
         
         # 更新頻道基本資訊
         channel_name.config(text=channel_data["items"][0]["snippet"]["title"])
-        channel_view2.config(text=channel_data["items"][0]["statistics"]["viewCount"])
+        channel_view2.config(text=f'{int(channel_data["items"][0]["statistics"]["viewCount"]):,}')
         channel_video2.config(text=channel_data["items"][0]["statistics"]["videoCount"])
-        channel_subscribe2.config(text=channel_data["items"][0]["statistics"]["subscriberCount"])
+        channel_subscribe2.config(text=channel_data["items"][0]["statistics"].get("subscriberCount", "隱藏"))
         
         # 頻道主題
         topics = channel_data["items"][0].get("topicDetails", {}).get("topicCategories", [])
@@ -57,7 +64,9 @@ def fetch_detailed_info(channel_id):
         global tk_image  # 避免圖片被垃圾回收
         tk_image = ImageTk.PhotoImage(pil_image)
         channel_pic.config(image=tk_image)
-        
+
+        error_label.config(text="")
+
         # 獲取最新影片
         with request.urlopen(videos_url) as response:
             video_data = json.load(response)
